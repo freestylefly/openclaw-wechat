@@ -135,7 +135,7 @@ export const wechatPlugin: ChannelPlugin<ResolvedWeChatAccount> = {
   agentPrompt: {
     messageToolHints: () => [
       "- WeChat targeting: use `user:<wcId>` for direct messages, `group:<chatRoomId>` for groups.",
-      "- WeChat supports text, image, and file messages.",
+      "- WeChat supports text, image, video, and file messages.",
     ],
   },
 

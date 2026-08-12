@@ -46,6 +46,7 @@ export type WechatMessageContext = {
     id: string;
   };
   content: string;
+  contentType?: string;
   timestamp: number;
   threadId: string;
   group?: {
