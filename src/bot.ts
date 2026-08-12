@@ -1,6 +1,10 @@
 import type { ClawdbotConfig, RuntimeEnv } from "openclaw/plugin-sdk";
 import { getWeChatRuntime } from "./runtime.js";
 import { createWeChatReplyDispatcher } from "./reply-dispatcher.js";
+import {
+  buildInboundWeChatMediaContext,
+  resolveInboundWeChatMedia,
+} from "./inbound-media.js";
 import type { WechatMessageContext, ResolvedWeChatAccount } from "./types.js";
 
 // --- Message deduplication ---
@@ -55,9 +59,10 @@ export async function handleWeChatMessage(params: {
 
   log(`wechat[${accountId}]: received ${message.type} from ${message.sender.id}${isGroup ? ` in group ${message.group!.id}` : ""}`);
 
-  // Only handle text messages for now
-  if (message.type !== "text") {
-    log(`wechat[${accountId}]: ignoring non-text message type: ${message.type}`);
+  const inboundMedia = resolveInboundWeChatMedia(message);
+
+  if (message.type !== "text" && !inboundMedia) {
+    log(`wechat[${accountId}]: ignoring unsupported message type or media reference: ${message.type}`);
     return;
   }
 
@@ -81,7 +86,10 @@ export async function handleWeChatMessage(params: {
       },
     });
 
-    const preview = message.content.replace(/\s+/g, " ").slice(0, 160);
+    const messageText = inboundMedia
+      ? `[${inboundMedia.modality} attachment]`
+      : message.content;
+    const preview = messageText.replace(/\s+/g, " ").slice(0, 160);
     const inboundLabel = isGroup
       ? `WeChat[${accountId}] message in group ${message.group!.id}`
       : `WeChat[${accountId}] DM from ${message.sender.id}`;
@@ -95,7 +103,7 @@ export async function handleWeChatMessage(params: {
 
     // Build message body with speaker attribution
     const speaker = message.sender.name || message.sender.id;
-    const messageBody = `${speaker}: ${message.content}`;
+    const messageBody = `${speaker}: ${messageText}`;
 
     const envelopeFrom = isGroup
       ? `${message.group!.id}:${message.sender.id}`
@@ -111,8 +119,8 @@ export async function handleWeChatMessage(params: {
 
     const ctxPayload = core.channel.reply.finalizeInboundContext({
       Body: body,
-      RawBody: message.content,
-      CommandBody: message.content,
+      RawBody: messageText,
+      CommandBody: messageText,
       From: wechatFrom,
       To: wechatTo,
       SessionKey: route.sessionKey,
@@ -129,6 +137,7 @@ export async function handleWeChatMessage(params: {
       CommandAuthorized: true,
       OriginatingChannel: "wechat" as const,
       OriginatingTo: wechatTo,
+      ...buildInboundWeChatMediaContext(inboundMedia),
     });
 
     // Determine reply target: in groups reply to group, in DMs reply to sender

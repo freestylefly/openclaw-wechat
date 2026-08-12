@@ -111,7 +111,7 @@ function normalizePayload(payload: any): {
     content: data.content ?? "",
     newMsgId: data.newMsgId,
     timestamp: data.timestamp ?? payload.timestamp,
-    contentType: undefined,
+    contentType: data.contentType,
     raw: payload,
   };
 }
@@ -143,7 +143,7 @@ function isGroupMessage(messageType: string): boolean {
   return messageType.startsWith("8");
 }
 
-function convertToMessageContext(payload: any): WechatMessageContext | null {
+export function convertToMessageContext(payload: any): WechatMessageContext | null {
   const { messageType } = payload;
 
   // Offline notification
@@ -181,6 +181,7 @@ function convertToMessageContext(payload: any): WechatMessageContext | null {
       id: norm.wcId,
     },
     content: norm.content,
+    contentType: norm.contentType,
     timestamp: norm.timestamp || Date.now(),
     threadId: isGroup ? (norm.fromGroup || norm.fromUser) : norm.fromUser,
     raw: norm.raw,
